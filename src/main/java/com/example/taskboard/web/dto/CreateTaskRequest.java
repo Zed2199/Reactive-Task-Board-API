@@ -1,0 +1,22 @@
+package com.example.taskboard.web.dto;
+
+import com.example.taskboard.domain.TaskStatus;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+
+import java.time.Instant;
+
+public record CreateTaskRequest(
+    @NotBlank
+    @Size(max = 200)
+    String title,
+
+    @Size(max = 1000)
+    String description,
+
+    TaskStatus taskStatus,
+    String priority,
+    Instant dueDate
+) {
+
+}

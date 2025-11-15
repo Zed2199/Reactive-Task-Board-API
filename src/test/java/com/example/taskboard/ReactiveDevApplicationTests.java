@@ -1,4 +1,4 @@
-package com.example.reactivedev;
+package com.example.taskboard;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;

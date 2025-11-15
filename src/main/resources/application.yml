@@ -1,4 +1,17 @@
 spring:
   data:
    mongodb:
-    uri : mongodb://root:root@localhost:27017/mydb?authSource=admin
+    uri : mongodb://root:root@localhost:27017/taskboard?authSource=admin
+
+  application:
+    name: reactive-taskboard
+
+
+server:
+  port: 8080
+
+
+logging:
+  level:
+    root: INFO
+    com.example.taskboard: DEBUG
