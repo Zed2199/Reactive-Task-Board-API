@@ -7,9 +7,12 @@ import com.example.taskboard.service.TaskService;
 import com.example.taskboard.web.dto.CreateTaskRequest;
 import com.example.taskboard.web.dto.TaskResponse;
 import com.example.taskboard.web.dto.UpdateTaskRequest;
+import com.example.taskboard.web.event.TaskEvent;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -59,6 +62,15 @@ public class TaskController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     Mono<Void> deleteTask(@PathVariable String id) {
         return taskService.deleteTask(id);
+    }
+
+    @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    Flux<ServerSentEvent<TaskEvent>> streamTaskEvents() {
+        return taskService.streamTaskEvents()
+                .map(event -> ServerSentEvent.<TaskEvent>builder()
+                        .event(event.type())
+                        .data(event)
+                        .build());
     }
 
 }

@@ -6,6 +6,7 @@ import com.example.taskboard.domain.TaskStatus;
 import com.example.taskboard.web.dto.CreateTaskRequest;
 import com.example.taskboard.web.dto.TaskResponse;
 import com.example.taskboard.web.dto.UpdateTaskRequest;
+import com.example.taskboard.web.event.TaskEvent;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -22,4 +23,7 @@ public interface TaskService {
     Mono<Void> deleteTask(String id);
 
     Flux<TaskResponse> getTasksPaged(int page, int size, TaskStatus status, Priority priority);
+
+    Flux<TaskEvent> streamTaskEvents();
+
 }

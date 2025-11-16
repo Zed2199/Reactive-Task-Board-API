@@ -9,11 +9,13 @@ import com.example.taskboard.repository.TaskRepository;
 import com.example.taskboard.web.dto.CreateTaskRequest;
 import com.example.taskboard.web.dto.TaskResponse;
 import com.example.taskboard.web.dto.UpdateTaskRequest;
+import com.example.taskboard.web.event.TaskEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.Sinks;
 
 @Slf4j
 @Service
@@ -22,6 +24,8 @@ public class TaskServiceImpl implements TaskService {
 
     private final TaskRepository taskRepository;
     private final TaskMapper taskMapper;
+    private final Sinks.Many<TaskEvent> taskEventSink;
+
 
     @Override
     public Flux<TaskResponse> getAllTasks(TaskStatus status, Priority priority) {
@@ -56,19 +60,23 @@ public class TaskServiceImpl implements TaskService {
 
     @Override
     public Mono<TaskResponse> createTask(CreateTaskRequest request) {
-
-        log.info("Creating task with title: {}", request.title());
+        log.info("Creating task with title='{}'", request.title());
 
         Task task = taskMapper.toEntity(request);
+
         if (task.getStatus() == null) {
             task.setStatus(TaskStatus.TODO);
         }
         if (task.getPriority() == null) {
             task.setPriority(Priority.MEDIUM);
         }
+
         return taskRepository.save(task)
-                .doOnNext(saved -> log.info("Task created with ID: {}", saved.getId()))
-                .map(taskMapper::toResponse);
+                .map(saved -> {
+                    TaskResponse response = taskMapper.toResponse(saved);
+                    emitEvent("CREATED", response);
+                    return response;
+                });
     }
 
     @Override
@@ -79,19 +87,23 @@ public class TaskServiceImpl implements TaskService {
                     taskMapper.updateEntityFromDto(updatedTask, existing);
                     return taskRepository.save(existing);
                 })
-                .map(taskMapper::toResponse);
-    }
+                .map(saved -> {
+                    TaskResponse response = taskMapper.toResponse(saved);
+                    emitEvent("UPDATED", response);
+                    return response;
+                });    }
 
     @Override
     public Mono<Void> deleteTask(String id) {
-        return taskRepository.existsById(id)
-                .flatMap(exists -> {
-                    if (Boolean.TRUE.equals(exists)) {
-                        return taskRepository.deleteById(id);
-                    } else {
-                        return Mono.error(new TaskNotFoundException(id));
-                    }
-                });
+        return taskRepository.findById(id)
+                .switchIfEmpty(Mono.error(new TaskNotFoundException(id)))
+                .flatMap(existing ->
+                        taskRepository.delete(existing)
+                                .then(Mono.fromRunnable( () -> {
+                                    TaskResponse response = taskMapper.toResponse(existing);
+                                    emitEvent("DELETED", response);
+                                }))
+                );
     }
 
     @Override
@@ -116,6 +128,24 @@ public class TaskServiceImpl implements TaskService {
                 .take(size)
                 .doOnComplete(() -> log.debug("Retrieved paged tasks"))
                 .map(taskMapper::toResponse);
+    }
+
+    @Override
+    public Flux<TaskEvent> streamTaskEvents() {
+        return taskEventSink.asFlux()
+                .doOnSubscribe(sub -> log.info("New subscription to task event stream"));
+    }
+
+
+
+    private void emitEvent(String type, TaskResponse response) {
+        TaskEvent event = new TaskEvent(type, response);
+        Sinks.EmitResult result = taskEventSink.tryEmitNext(event);
+
+        if (result.isFailure()) {
+            log.warn("Failed to emit task event: {} for task id={} (result={})",
+                    type, response.id(), result);
+        }
     }
 
 }
