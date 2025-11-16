@@ -1,5 +1,6 @@
 package com.example.taskboard.web.dto;
 
+import com.example.taskboard.domain.Priority;
 import com.example.taskboard.domain.TaskStatus;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -14,8 +15,8 @@ public record CreateTaskRequest(
     @Size(max = 1000)
     String description,
 
-    TaskStatus taskStatus,
-    String priority,
+    TaskStatus status,
+    Priority priority,
     Instant dueDate
 ) {
 

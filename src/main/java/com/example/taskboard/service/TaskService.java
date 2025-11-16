@@ -1,14 +1,16 @@
 package com.example.taskboard.service;
 
 import com.example.taskboard.domain.Priority;
-import com.example.taskboard.domain.Task;
 import com.example.taskboard.domain.TaskStatus;
 import com.example.taskboard.web.dto.CreateTaskRequest;
 import com.example.taskboard.web.dto.TaskResponse;
+import com.example.taskboard.web.dto.TaskStatsResponse;
 import com.example.taskboard.web.dto.UpdateTaskRequest;
 import com.example.taskboard.web.event.TaskEvent;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
+import java.util.List;
 
 public interface TaskService {
 
@@ -25,5 +27,13 @@ public interface TaskService {
     Flux<TaskResponse> getTasksPaged(int page, int size, TaskStatus status, Priority priority);
 
     Flux<TaskEvent> streamTaskEvents();
+
+    Mono<List<TaskResponse>> completeTasksBulk(java.util.List<String> ids);
+
+    Mono<TaskStatsResponse> getTaskStats();
+
+    Mono<TaskResponse> getTaskByIdOrDefault(String id);
+
+
 
 }

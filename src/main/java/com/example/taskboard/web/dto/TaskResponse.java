@@ -1,14 +1,19 @@
 package com.example.taskboard.web.dto;
 
+import com.example.taskboard.domain.Priority;
+import com.example.taskboard.domain.TaskStatus;
+
+import java.time.Instant;
+
 public record TaskResponse(
    String id,
     String title,
     String description,
-    String status,
-    String priority,
-    String dueDate,
-    String createdAt,
-    String updatedAt
+    TaskStatus status,
+    Priority priority,
+    Instant dueDate,
+    Instant createdAt,
+    Instant updatedAt
 ) {
 
 }

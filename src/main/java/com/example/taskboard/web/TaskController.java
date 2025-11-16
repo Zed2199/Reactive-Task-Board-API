@@ -1,12 +1,9 @@
 package com.example.taskboard.web;
 
 import com.example.taskboard.domain.Priority;
-import com.example.taskboard.domain.Task;
 import com.example.taskboard.domain.TaskStatus;
 import com.example.taskboard.service.TaskService;
-import com.example.taskboard.web.dto.CreateTaskRequest;
-import com.example.taskboard.web.dto.TaskResponse;
-import com.example.taskboard.web.dto.UpdateTaskRequest;
+import com.example.taskboard.web.dto.*;
 import com.example.taskboard.web.event.TaskEvent;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -72,5 +69,21 @@ public class TaskController {
                         .data(event)
                         .build());
     }
+
+    @PostMapping("/complete")
+    Mono<java.util.List<TaskResponse>> completeTasksBulk(@RequestBody BulkCompleteRequest request) {
+        return taskService.completeTasksBulk(request.ids());
+    }
+
+    @GetMapping("/stats")
+    Mono<TaskStatsResponse> getTaskStats() {
+        return taskService.getTaskStats();
+    }
+
+    @GetMapping("/{id}/safe")
+    Mono<TaskResponse> getTaskOrDefault(@PathVariable String id) {
+        return taskService.getTaskByIdOrDefault(id);
+    }
+
 
 }

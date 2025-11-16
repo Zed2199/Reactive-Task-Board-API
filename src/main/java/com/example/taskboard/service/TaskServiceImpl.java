@@ -8,6 +8,7 @@ import com.example.taskboard.mapper.TaskMapper;
 import com.example.taskboard.repository.TaskRepository;
 import com.example.taskboard.web.dto.CreateTaskRequest;
 import com.example.taskboard.web.dto.TaskResponse;
+import com.example.taskboard.web.dto.TaskStatsResponse;
 import com.example.taskboard.web.dto.UpdateTaskRequest;
 import com.example.taskboard.web.event.TaskEvent;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +17,9 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
+
+import java.time.Instant;
+import java.util.List;
 
 @Slf4j
 @Service
@@ -136,7 +140,67 @@ public class TaskServiceImpl implements TaskService {
                 .doOnSubscribe(sub -> log.info("New subscription to task event stream"));
     }
 
+    @Override
+    public Mono<List<TaskResponse>> completeTasksBulk(List<String> ids) {
+        return Flux.fromIterable(ids)
+                .concatMap(this::completeSingleTask)
+                .collectList();
+    }
 
+    @Override
+    public Mono<TaskStatsResponse> getTaskStats() {
+
+        Mono<Long> totalMono = taskRepository.count();
+        Mono<Long> todoMono = taskRepository.findByStatus(TaskStatus.TODO).count();
+        Mono<Long> inProgressMono = taskRepository.findByStatus(TaskStatus.IN_PROGRESS).count();
+        Mono<Long> doneMono = taskRepository.findByStatus(TaskStatus.DONE).count();
+
+        return Mono.zip(totalMono, todoMono, inProgressMono, doneMono)
+                .map(tuple -> new TaskStatsResponse(
+                        tuple.getT1(),
+                        tuple.getT2(),
+                        tuple.getT3(),
+                        tuple.getT4()
+                ));
+
+    }
+
+    @Override
+    public Mono<TaskResponse> getTaskByIdOrDefault(String id) {
+        return taskRepository.findById(id)
+                .switchIfEmpty(Mono.error(new TaskNotFoundException(id)))
+                .map(taskMapper::toResponse)
+                .onErrorResume(TaskNotFoundException.class, ex -> {
+                    log.warn("Task not found, returning default placeholder for id={}", id);
+                    TaskResponse fallback = new TaskResponse(
+                            "N/A",
+                            "Default task",
+                            "This is a fallback because the requested task was not found",
+                            TaskStatus.TODO,
+                            Priority.LOW,
+                            null,
+                            Instant.now(),
+                            Instant.now()
+                    );
+                    return Mono.just(fallback);
+                });
+    }
+
+
+
+    private Mono<TaskResponse> completeSingleTask(String id) {
+        return taskRepository.findById(id)
+                .switchIfEmpty(Mono.error(new TaskNotFoundException(id)))
+                .flatMap(task -> {
+                    task.setStatus(TaskStatus.DONE);
+                    return taskRepository.save(task);
+                })
+                .map(saved -> {
+                    TaskResponse response = taskMapper.toResponse(saved);
+                    emitEvent("UPDATED", response);
+                    return response;
+                });
+    }
 
     private void emitEvent(String type, TaskResponse response) {
         TaskEvent event = new TaskEvent(type, response);
